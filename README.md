@@ -246,3 +246,240 @@ If you get the below error
 $ sudo chmod 755 /app/hadoop/tmp/dfs/data
 
 
+######################################################################################################
+
+Revised Date: 30-Oct-2016
+Multi node-cluster setup
+We will create a 5 node cluster system (1-Master, 4-slave).
+1.	Create 5 Nodes
+Copy the single-node cluster setup folder 5 times. Rename one folder as master and other 4 folders as slave1, slave2, slave3, slave4.
+2.	Load Nodes into VMs
+Load the master, slave1 , slave2 , slave3, slave4 VM in VMware and make sure network Adapter is set to NAT. Make sure to change the RAM and processor as per your system configuration you have.
+ Whenever asked “If You have copied or moved”, choose copied. 			  Credentials: hduser/hadoop to login in all the 5 system
+3.	Check if nodes are reachable
+Find the ip Address of all 5 systems & try to ping each other
+hduser@ubuntu:~$ ifconfig
+Master 	192.168.220.180
+Slave1	192.168.220.181
+Slave2	192.168.220.182
+Slave3	192.168.220.183
+Slave4	192.168.220.184
+
+Master  hduser@ubuntu:~$ ping 192.168.220.181     //Master pinging slave1 
+Master  hduser@ubuntu:~$ ping 192.168.220.182     //Master pinging slave2 
+Master  hduser@ubuntu:~$ ping 192.168.220.183     //Master pinging slave3 
+Master  hduser@ubuntu:~$ ping 192.168.220.184     //Master pinging slave4 
+
+
+Slave1   hduser@ubuntu:~$ ping 192.168.220.180     //Slave1 pinging master 
+Slave1   hduser@ubuntu:~$ ping 192.168.220.182     //Slave1 pinging slave2 
+Slave1   hduser@ubuntu:~$ ping 192.168.220.183     //Slave1 pinging slave3 
+Slave1   hduser@ubuntu:~$ ping 192.168.220.184     //Slave1 pinging slave4 
+
+Slave2   hduser@ubuntu:~$ ping 192.168.220.180     //Slave2 pinging master 
+Slave2   hduser@ubuntu:~$ ping 192.168.220.181     //Slave2 pinging slave1 
+Slave2   hduser@ubuntu:~$ ping 192.168.220.183     //Slave2 pinging slave3
+Slave2   hduser@ubuntu:~$ ping 192.168.220.184     //Slave2 pinging slave14
+ #repeat for slave 3 and slave 4
+
+4.	Change the hostname of all 5 system
+Master vm
+$ sudo vim /etc/hostname
+Press i on the keyboard and write  ‘master’ by deleting Ubuntu.			Press ESC on the keybord								Save the configuration by :wq!
+Repeat the above step with salve1 & slave2 VM and change the host name to slave1, 	slave2, slave3, slave4
+5.	Update the hosts on all 5 nodes
+Master VM:
+$ sudo vim /etc/hosts
+127.0.0.1       localhost             #dont touch this
+#127.0.1.1       master             #remove this line
+192.168.220.180   master             #Added this and below 2 lines
+192.168.220.181   slave1	
+192.168.220.182   slave2	#IPAddress and HostName of slave2
+192.168.220.183   slave2	#IPAddress and HostName of slave3
+192.168.220.184   slave2	#IPAddress and HostName of slave4
+
+Repeat the same in Slave1 , Slave2, slave3, slave4
+
+6.	Restart all the VM in order to reflect the changes.
+$ reboot  
+$  init 0  --This shutdowns 
+
+
+7.	Confirm the hostname of all 5 nodes.
+ Executing  the below command on each VM.
+$ hostname 
+It should print master, slave1, slave2, slave3, slave4 in 5 machines respectively.
+
+In fact when you launch terminal (ctrl + shift + T), instead of showing 
+hduser@ubuntu:~$
+It now shows
+hduser@master:~$  # in master node
+hduser@slave1:~$   # in slave1 node
+hduser@slave2:~$   # in slave2 node
+hduser@slave3:~$   # in slave3 node
+hduser@slave4:~$   # in slave4 node
+
+
+8.	Ping Each other using Hostname
+Start pinging each other system again using the hostname instead of ipaddress
+Master->ping slave1 & slave2
+Slave1->ping master only
+Slave2->ping master only
+hduser@master:~$  ping slave1
+hduser@master:~$  ping slave2
+hduser@slave1 :~$  ping master
+hduser@slave2 :~$  ping master
+
+You should get ping response for above commands without any packet loss.
+If you get any packet loss, fix the issue without proceeding further
+
+9.	Test SSH connectivity
+Test the ssh connectivity by doing the following. It will ask for yes or no and you should type 'yes'.Perform ssh master/slave1/slave2/slave3/slave4 on each of the node to verify the connectivity.
+
+hduser@master:~$ ssh master
+hduser@master:~$ ssh slave1 			#Type Yes. It will connect to slave1 
+hduser@slave1:~$ exit  				#will exit slave1 and goes back to master.
+hduser@master:~$ ssh slave2 			# Type Yes. It will connect to slave2
+hduser@slave2:~$ exit  				#will exit slave2 and goes back to master.
+hduser@master:~$
+
+It will ask for yes or no and you should type 'yes'
+We should be able to SSH master and SSH slaves without password prompt.
+If it asks for password while connecting to master or slave using SSH, there
+is something went wrong and you need to fix it before proceeding further.
+
+Common Configurations (needs to be done in master as well as all slaves)
+
+10.	Update core-site.xml(Master+ All Slave Nodes)
+$ sudo vim /usr/local/hadoop/etc/hadoop/core-site.xml
+2 changes
+a.	Remove hadoop.tmp.dir configuration. We don’t require them
+b.	change localhost  to master   
+  
+<property>
+	<name>hadoop.tmp.dir</name>
+	<value>/app/hadoop/tmp</value>
+	<description>A base for other temporary directories.</description>
+</property>
+ <property>
+	 <name> fs.default.name </name>			
+	<value>hdfs://master:9000</value>  <!--instead of localhost -->
+</property>
+
+
+11.	Update hdfs-site.xml(Master + All slave Nodes)
+3 changes
+a.	Replication is set to 2
+b.	Namenode configured only in master
+c.	Datanode configured only in slave
+
+$ sudo vim /usr/local/hadoop/etc/hadoop/hdfs-site.xml
+<property>
+    <name>dfs.replication</name>
+    <value>4</value> <!--changing replication from 1 to 2 -->
+  </property>
+
+<!--Keep this entry in Master only, and delete from slaves-->
+<property>
+    <name>dfs.namenode.name.dir</name>
+    <value>file:/usr/local/hadoop_tmp/hdfs/namenode</value>
+</property>
+
+<!--Remove this entry From Master, and  Keep  this entry in slaves-->
+<property>
+    <name>dfs.datanode.data.dir</name>
+    <value>file:/usr/local/hadoop_tmp/hdfs/datanode</value>
+</property>
+
+12.	Update yarn-site.xml(Master + All Slave Nodes)
+$ sudo vim /usr/local/hadoop/etc/hadoop/yarn-site.xml
+<property>
+<name>yarn.resourcemanager.resource-tracker.address</name>
+<value>master:8025</value>
+</property>
+<property>
+<name>yarn.resourcemanager.scheduler.address</name>
+<value>master:8030</value>
+</property> 
+<property>
+<name>yarn.resourcemanager.address</name>
+<value>master:8050</value>
+</property>
+
+13.	Update mapred-site.xml(Master + All Slave Nodes) 
+$sudo vim  /usr/local/hadoop/etc/hadoop/mapred-site.xml
+  <property>
+    	<name>mapreduce.jobhistory.address</name>
+		<value>master:10020</value><!-- Pointing jobhistory to master-->
+  		<description>Host and port for Job History Server (default 			
+		0.0.0.0:10020)</description>
+</property>
+
+Master only Configuration
+
+14.	Update Masters and slaves file(Master Node only)
+If you see any entry related to localhost, feel free to delete it. This file is just helper file that are used by hadoop scripts to start appropriate services on master and slave nodes.
+hduser@master$ sudo vim  /usr/local/hadoop/etc/hadoop/slaves
+slave1
+slave2
+slave3
+slave4
+Below masters file does not exists by default. It gets created the files
+hduser@master$ sudo vim  /usr/local/hadoop/etc/hadoop/masters
+master
+
+Note: You don’t need to configure them in slave nodes
+
+15.	Recreate Namenode folder(Master Only)
+hduser@master$
+sudo rm -rf /usr/local/hadoop_tmp
+sudo mkdir -p /usr/local/hadoop_tmp/hdfs/namenode
+sudo chown hduser:hadoop -R /usr/local/hadoop_tmp/ 
+sudo chmod 777 /usr/local/hadoop_tmp/hdfs/namenode
+
+16.	Recreate Datanode folder(All Slave Nodes Only)
+hduser@slave1$
+sudo rm -rf /usr/local/hadoop_tmp
+sudo mkdir -p /usr/local/hadoop_tmp/hdfs/datanode
+sudo chown hduser:hadoop -R /usr/local/hadoop_tmp/ 
+sudo chmod 777 /usr/local/hadoop_tmp/hdfs/datanode
+
+17.	Format the Name node(Master only)
+Before starting the cluster, we need to format the Name node. Use the following command only on master node:
+$ hdfs namenode -format
+18.	Start the DFS & Yarn (Master Only)
+$ start-dfs.sh   
+$ start-yarn.sh   
+	or	
+$ start-dfs.sh    && start-yarn.sh     #starting both at once
+	or
+$ start-all.sh     #deprecated but internally calls start-dfs.sh && start-yarn.sh
+Type Yes when asked for.
+You should observe that it tries to start data node on slave nodes one by one.
+Once it is started,Do a Jps on Master and slaves.
+
+Jps on Master node
+hduser@master$ jps
+3379 NameNode                            #because of start-dfs.sh
+3175 SecondaryNameNode         #because of start-dfs.sh
+3539 ResourceManager               #because of start-yarn.sh
+
+Jps on slave nodes(slave1 and slave2)
+hduser@slave1$ jps
+2484 DataNode                              #because of start-dfs.sh
+2607 NodeManager                       #because of start-yarn.sh
+
+19.	Review Yarn console:
+If all the services started successfully on all nodes, then you should see all of your nodes listed under Yarn nodes.  You can hit the following url on your browser and verify that:
+
+http://master:8088/cluster/nodes
+http://master:50070     # can show live node count and info about each live nodes.
+
+You can also get the report of your cluster by issuing the below commands
+hduser@master$ hdfs dfsadmin -report
+
+20.	In case you don’t get to see the live nodes on the browsers, there are some mistakes somewhere. You need to figure it out. You can  look into the logs in the below location
+/usr/local/hadoop/logs/
+Check in all the log files of both master and slaves and it should hint you the problem.
+
+
