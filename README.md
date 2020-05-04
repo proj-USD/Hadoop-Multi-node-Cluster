@@ -248,7 +248,6 @@ $ sudo chmod 755 /app/hadoop/tmp/dfs/data
 
 ######################################################################################################
 
-Revised Date: 30-Oct-2016
 Multi node-cluster setup
 We will create a 5 node cluster system (1-Master, 4-slave).
 1.	Create 5 Nodes
