@@ -333,7 +333,7 @@ You should get ping response for above commands without any packet loss.
 If you get any packet loss, fix the issue without proceeding further
 
 9.	Test SSH connectivity
-Test the ssh connectivity by doing the following. It will ask for yes or no and you should type 'yes'.Perform ssh master/slave1/slave2/slave3/slave4 on each of the node to verify the connectivity.
+Test the ssh connectivity by doing the following. It will ask for yes or no and you should type 'yes'. Perform ssh master/slave1/slave2/slave3/slave4 on each of the node to verify the connectivity.
 
 hduser@master:~$ ssh master
 hduser@master:~$ ssh slave1 			#Type Yes. It will connect to slave1 
